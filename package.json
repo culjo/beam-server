@@ -1,0 +1,36 @@
+{
+  "name": "beam-server",
+  "version": "1.0.0",
+  "description": "A beamer for all market place",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "npx pm2 start server.js --watch --no-daemon"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/culjo/beam-server.git"
+  },
+  "keywords": [
+    "online",
+    "commerce"
+  ],
+  "author": "madefix",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/culjo/beam-server/issues"
+  },
+  "homepage": "https://github.com/culjo/beam-server#readme",
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "cors": "^2.8.5",
+    "express": "^4.16.4",
+    "mysql": "^2.16.0",
+    "mysql2": "^1.6.4",
+    "request": "^2.88.0",
+    "sequelize": "^4.42.0"
+  },
+  "devDependencies": {
+    "pm2": "^3.2.9"
+  }
+}
