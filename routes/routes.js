@@ -26,18 +26,58 @@ const router = app => {
     /**
      * Create a new user, mostly used when a user has downloaded the app an opened it
      */
+    app.post('/users/login', (request, response) => {
+        var body = request.body;
+
+        if (Object.keys(body).length > 0 && body.constructor === Object) {
+
+            if (body.uniqueId && body.phone) { // && body.location) {
+
+                Users.findOrCreate({
+                    where: {
+                        phone: body.phone
+                    },
+                    defaults: {
+                        unique_id: body.uniqueId,
+                        device_fcm_token: body.deviceToken != undefined ? body.deviceToken : '',
+                        phone: body.phone,
+
+                    }
+                }).spread((user, created) => {
+                    responseSuccess(response, user, 'User Created', 201);
+                })
+                /*.then(user => {
+                    responseSuccess(response, user, 'User Created', 201);
+                }).catch(err => {
+                    responseFailure(response, 'Failed to create User', err.toString)
+                })*/
+
+            } else {
+                responseFailure(response, 'Please provide user identification, device token and user phone')
+            }
+
+        } else {
+            responseFailure(response, 'Please Provide User Information')
+        }
+
+    })
+
+    /**
+     * @deprecated
+     * Create a new user, mostly used when a user has downloaded the app an opened it
+     */
     app.post('/users', (request, response) => {
         var body = request.body;
 
         if (Object.keys(body).length > 0 && body.constructor === Object) {
 
-            if (body.uniqueId && body.deviceToken && body.name && body.location) {
+            if (body.uniqueId && body.deviceToken && body.phone) { // && body.location) {
 
                 Users.create({
                     unique_id: body.uniqueId,
                     device_fcm_token: body.deviceToken,
-                    name: body.name,
-                    location: body.location
+                    phone: body.phone,
+                    // location: body.location
                 }).then(user => {
                     responseSuccess(response, user, 'User Created', 201);
                 }).catch(err => {
@@ -51,7 +91,7 @@ const router = app => {
         } else {
             responseFailure(response, 'Please Provide User Information')
         }
-        
+
     })
 
     app.get('/users', (request, response) => {
@@ -70,13 +110,13 @@ const router = app => {
                 }
             }]
         }).then(userProducts => response.json(userProducts))
-        .catch(err => responseFailure(response, "******* " + err));
+            .catch(err => responseFailure(response, "******* " + err));
     })
 
     app.get('/products', (request, response) => {
         console.log('Query Params is', request.query);
 
-        var offset = 0, limit = 18;
+        var offset = 0, limit = 25;
         if (request.query.limit != undefined) {
             limit = parseInt(request.query.limit);
         }
@@ -84,7 +124,16 @@ const router = app => {
             offset = parseInt(request.query.offset);
         }
         Products.findAll({ offset: offset, limit: limit })
-            .then(product => response.json(product))
+            .then(products => {
+                var payload = {
+                    // page: 1,
+                    start: offset,
+                    per_page: limit,
+                    total: products.length,
+                    data: products
+                }
+                response.json(payload)
+            })
             .catch(err => responseFailure(response, err + ""))
     })
 
@@ -109,7 +158,7 @@ const router = app => {
                 }
             }
         }).then(resultCount => {
-            responseSuccess(response, {updated: resultCount}, 'Dope')
+            responseSuccess(response, { updated: resultCount }, 'Dope')
         }).catch(err => {
             responseFailure(response, 'Doom!', err.toString)
         })
@@ -127,7 +176,7 @@ const router = app => {
             where: {
                 // product_id: 2,
                 is_promo_enabled: true,
-                stock_count: { [Op.gt] : 0 }
+                stock_count: { [Op.gt]: 0 }
             }
         }).then(result => {
             // send notifications to all users aboout this new change..
@@ -145,41 +194,44 @@ const router = app => {
 
     })
 
-    
+
 
     /**
      * Subscribe user to  a particular product
      */
-    app.post('/products/:id/subscribe', (request, response) => {
+    app.post('/products/:id/subscribe', (request, response) => { // from subscribe -> watch
         var productId = request.params['id']
 
         var body = request.body;
-        if (body.userId) {
+        if (body.userId && body.myPrice) {
             UserProducts.create({
+                product_id: parseInt(productId),
                 user_id: body.userId,
-                product_id: productId
+                my_price: body.myPrice
             }).then(userProduct => {
                 responseSuccess(response, userProduct, 'Subscribed Successfully', 201)
             }).catch(err => {
                 responseFailure(response, "Oops! Failed to subscribe")
             })
+        } else {
+            responseFailure(response, 'Please Set all nesscessary params', 'Error Subsribing user')
         }
-        
+
         //responseSuccess(response, { id: productId }, "Event Successful")
     })
 
     app.post('/subscribe', (request, response) => {
         console.log("Request Body PARAMS: ", request.body);
         var resObject = request.body;
-    
+
         if (resObject.userId && reqObject.productId) {
-            
+
         }
-        response.json({done: true})
+        response.json({ done: true })
     })
 
     // app.post('/subscribe', (request, response) => {
-        
+
     // })
 
 

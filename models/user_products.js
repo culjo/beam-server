@@ -21,6 +21,7 @@ module.exports = (sequelize, Users, Products) => {
                 key: 'product_id'
             }*/
         },
+        my_price: Sequelize.DECIMAL,
         disabled: Sequelize.BOOLEAN,
     },
     {

@@ -12,6 +12,7 @@ module.exports = (sequelize) => {
         unique_id: Sequelize.INTEGER,
         device_fcm_token: Sequelize.STRING,
         name: Sequelize.STRING,
+        phone: Sequelize.STRING,
         location: Sequelize.STRING,
         created_on: Sequelize.NOW
 
