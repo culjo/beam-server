@@ -81,7 +81,7 @@ const router = app => {
                 }).then(user => {
                     responseSuccess(response, user, 'User Created', 201);
                 }).catch(err => {
-                    responseFailure(response, 'Failed to create User', err.toString)
+                    responseFailure(response, 'Failed to create User', err.toString())
                 })
 
             } else {
@@ -102,16 +102,47 @@ const router = app => {
 
     app.get('/users/:id/products', (request, response) => {
 
+        var userId = request.params.id
+        
         UserProducts.findAll({
             include: [{
                 model: Products,
                 where: {
                     product_id: Seqeulize.col('product.product_id')
                 }
-            }]
-        }).then(userProducts => response.json(userProducts))
+            }],
+            where: {
+                user_id: parseInt(userId)
+            }
+        }).then(userProducts => responseSuccess(response, userProducts, 'Success'))  // response.json(userProducts))
             .catch(err => responseFailure(response, "******* " + err));
     })
+
+    // ------------------------------------------------------------------------
+    app.get('/users/:id/products/test', (request, response) => {
+
+        // UserProducts.afterFind((userProduct, options) => {
+            // console.log('Call to after Find', userProduct.length)
+        // })
+
+        UserProducts.findAll({
+            include: [{
+                model: Products,
+                where: {
+                    product_id: Seqeulize.col('product.product_id'),
+                }
+            }, {
+                model: Users,
+                where: {user_id: Seqeulize.col('user.user_id')}
+            }],
+            where: {
+                my_price: { [Op.gte] : Seqeulize.col('product.discount')}
+            }
+        }
+        ).then(userProducts => response.json(userProducts))
+            .catch(err => responseFailure(response, "******* " + err));
+    })
+
 
     app.get('/products', (request, response) => {
         console.log('Query Params is', request.query);
@@ -158,9 +189,9 @@ const router = app => {
                 }
             }
         }).then(resultCount => {
-            responseSuccess(response, { updated: resultCount }, 'Dope')
+            responseSuccess(response, { updated: resultCount }, 'Successful')
         }).catch(err => {
-            responseFailure(response, 'Doom!', err.toString)
+            responseFailure(response, 'Doom!', err.toString())
         })
 
     })
@@ -182,7 +213,7 @@ const router = app => {
             // send notifications to all users aboout this new change..
             responseSuccess(response, result)
         }).catch(err => {
-            responseFailure(response, 'Shit,,,,', err.toString)
+            responseFailure(response, 'Shit,,,,', err.toString())
         })
         /*Products.update({
 
@@ -194,25 +225,53 @@ const router = app => {
 
     })
 
-
-
     /**
-     * Subscribe user to  a particular product
+     * Subscribe user to a particular product, if a user has been subscribed before we update his price
+     * it can be also be to update the user prefered price for product
      */
     app.post('/products/:id/subscribe', (request, response) => { // from subscribe -> watch
         var productId = request.params['id']
 
         var body = request.body;
         if (body.userId && body.myPrice) {
-            UserProducts.create({
-                product_id: parseInt(productId),
-                user_id: body.userId,
-                my_price: body.myPrice
-            }).then(userProduct => {
-                responseSuccess(response, userProduct, 'Subscribed Successfully', 201)
-            }).catch(err => {
-                responseFailure(response, "Oops! Failed to subscribe")
+            UserProducts.findOrCreate({
+                where: {
+                    product_id: productId,
+                    user_id: body.userId
+                },
+                defaults: {
+                    product_id: parseInt(productId),
+                    user_id: body.userId,
+                    my_price: body.myPrice
+                }
+            }).spread((userproduct, created) => {
+                if (!created) { // That mean userProduct was not created
+                    // Then Update the 
+                    UserProducts.update({
+                        my_price: body.myPrice
+                    }, {
+                            where: {
+                                user_id: body.userId,
+                                product_id: productId
+                            }
+                        })
+                        .then(result => {
+                            var o = userproduct;
+                            o.my_price = body.myPrice
+                            responseSuccess(response, o, 'Product subscribed updated successfully')
+                        })
+                        .catch(err => responseFailure(response, 'Failed to subscribe to product', err.toString()))
+                } else {
+                    responseSuccess(response, userproduct, 'Product subscribed to successfully')
+                }
             })
+
+            /*.then(userProduct => {
+                    responseSuccess(response, userProduct, 'Subscribed Successfully', 201)
+                }).catch(err => {
+                    responseFailure(response, "Oops! Failed to subscribe")
+                })*/
+
         } else {
             responseFailure(response, 'Please Set all nesscessary params', 'Error Subsribing user')
         }
@@ -220,19 +279,51 @@ const router = app => {
         //responseSuccess(response, { id: productId }, "Event Successful")
     })
 
-    app.post('/subscribe', (request, response) => {
-        console.log("Request Body PARAMS: ", request.body);
-        var resObject = request.body;
-
-        if (resObject.userId && reqObject.productId) {
-
+    /**
+     * Unsubscribe user from a product watch
+     */
+    app.put('/products/:id/unsubscribe', (request, response) => {
+        var productId = request.params.id
+        var body = request.body
+        if (body.userId) {
+            UserProducts.update({
+                disabled: true
+            }, {
+                    where: {
+                        user_id: { [Op.eq]: body.userId },
+                        product_id: { [Op.eq]: productId }
+                    }
+                }).then(done => responseSuccess(response, {}, 'Unsubscribed Successfully'))
+                .catch(err => responseFailure(response, 'Failed to Unsubscribe', err))
+        } else {
+            responseFailure(response, 'Failed')
         }
-        response.json({ done: true })
+
     })
 
-    // app.post('/subscribe', (request, response) => {
+    /**
+     * Save user device fcm generated token,
+     * This token will be used to send push notification to user particular devices 
+     */
+    app.put('/save-token', (request, response) => {
 
-    // })
+        var body = request.body
+        if (body.token && body.userId && body.uuid) {
+            Users.update({
+                device_fcm_token: body.token
+            }, {
+                    where: { user_id: { [Op.eq]: body.userId }, unique_id: { [Op.eq]: body.uuid } }
+                }).then(resultCount => {
+                    responseSuccess(response, { updated: resultCount }, 'Successful')
+                }).catch(err => {
+                    responseFailure(response, 'Failed to save user device token', err.toString())
+                })
+
+        } else {
+            responseFailure(response, 'Please provide user device token & information ')
+        }
+
+    })
 
 
 }

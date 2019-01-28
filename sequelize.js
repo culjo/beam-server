@@ -25,7 +25,7 @@ const Users = UserModel(sequelize)
 const Products = ProductModel(sequelize) // , Sequelize)
 const UserProducts = UserProductsModel(sequelize, Users, Products)
 
-// UserProducts.belongsTo(Users)
+UserProducts.belongsTo(Users, {foreignKey: 'user_id'})
 UserProducts.belongsTo(Products, {foreignKey: 'product_id'})
 
 module.exports = {
