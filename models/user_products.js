@@ -22,6 +22,7 @@ module.exports = (sequelize, Users, Products) => {
             }*/
         },
         my_price: Sequelize.DECIMAL,
+        is_notified: Sequelize.BOOLEAN,
         disabled: Sequelize.BOOLEAN,
     },
     {

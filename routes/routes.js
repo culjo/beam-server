@@ -118,30 +118,6 @@ const router = app => {
             .catch(err => responseFailure(response, "******* " + err));
     })
 
-    // ------------------------------------------------------------------------
-    app.get('/users/:id/products/test', (request, response) => {
-
-        // UserProducts.afterFind((userProduct, options) => {
-            // console.log('Call to after Find', userProduct.length)
-        // })
-
-        UserProducts.findAll({
-            include: [{
-                model: Products,
-                where: {
-                    product_id: Seqeulize.col('product.product_id'),
-                }
-            }, {
-                model: Users,
-                where: {user_id: Seqeulize.col('user.user_id')}
-            }],
-            where: {
-                my_price: { [Op.gte] : Seqeulize.col('product.discount')}
-            }
-        }
-        ).then(userProducts => response.json(userProducts))
-            .catch(err => responseFailure(response, "******* " + err));
-    })
 
 
     app.get('/products', (request, response) => {
@@ -198,9 +174,10 @@ const router = app => {
 
 
     /**
+     * @deprecated - we will call this function from the cron job
      * subtracts all the promo prices from product discount prices
      */
-    app.put('/promos/products', (request, response) => {
+    app.put('/promos/products', (request, response) => { // rename to /promos/start
 
         Products.decrement('discount', {
             by: Seqeulize.col('price_to_subtract'),
@@ -211,17 +188,12 @@ const router = app => {
             }
         }).then(result => {
             // send notifications to all users aboout this new change..
-            responseSuccess(response, result)
+            
         }).catch(err => {
-            responseFailure(response, 'Shit,,,,', err.toString())
+            // responseFailure(response, 'Shit,,,,', err.toString())
         })
-        /*Products.update({
 
-        }, {
-            where: {
-                is_promo_enabled: true
-            }
-        } )*/
+        responseSuccess(response, []) // Good to procceed
 
     })
 
@@ -308,11 +280,11 @@ const router = app => {
     app.put('/save-token', (request, response) => {
 
         var body = request.body
-        if (body.token && body.userId && body.uuid) {
+        if (body.token && body.userId){ // && body.uuid) {
             Users.update({
                 device_fcm_token: body.token
             }, {
-                    where: { user_id: { [Op.eq]: body.userId }, unique_id: { [Op.eq]: body.uuid } }
+                    where: { user_id: { [Op.eq]: body.userId } } //, unique_id: { [Op.eq]: body.uuid } }
                 }).then(resultCount => {
                     responseSuccess(response, { updated: resultCount }, 'Successful')
                 }).catch(err => {
@@ -326,7 +298,33 @@ const router = app => {
     })
 
 
+    app.get('/users/:id/products/price-match', (request, response) => {
+
+        // UserProducts.afterFind((userProduct, options) => {
+            // console.log('Call to after Find', userProduct.length)
+        // })
+
+        UserProducts.findAll({
+            include: [{
+                model: Products,
+                where: {
+                    product_id: Seqeulize.col('product.product_id'),
+                }
+            }, {
+                model: Users,
+                where: {user_id: Seqeulize.col('user.user_id')}
+            }],
+            where: {
+                my_price: { [Op.gte] : Seqeulize.col('product.discount')}
+            }
+        }
+        ).then(userProducts => response.json(userProducts))
+            .catch(err => responseFailure(response, "******* " + err));
+    })
+    
 }
+
+
 
 const responseFailure = (res, message = '', errorMessage = '', statusCode = 400) => {
     res.status(statusCode).json({
@@ -343,6 +341,35 @@ const responseSuccess = (response, data, message = '', statusCode = 200) => {
         data: data
     })
 }
+
+
+/**
+     * @deprecated
+     * used for testing price matching categpry
+     */
+    /*app.get('/users/:id/products/price-match', (request, response) => {
+
+        // UserProducts.afterFind((userProduct, options) => {
+            // console.log('Call to after Find', userProduct.length)
+        // })
+
+        UserProducts.findAll({
+            include: [{
+                model: Products,
+                where: {
+                    product_id: Seqeulize.col('product.product_id'),
+                }
+            }, {
+                model: Users,
+                where: {user_id: Seqeulize.col('user.user_id')}
+            }],
+            where: {
+                my_price: { [Op.gte] : Seqeulize.col('product.discount')}
+            }
+        }
+        ).then(userProducts => response.json(userProducts))
+            .catch(err => responseFailure(response, "******* " + err));
+    })*/
 
 /*function isObjectEmpty(Obj) {
     for(var key in Obj) {
